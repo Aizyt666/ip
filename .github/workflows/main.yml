@@ -1,41 +1,52 @@
+# 工作流名称，会显示在 GitHub Actions 页面
 name: Update IP List
 
+# 触发条件
 on:
   schedule:
-    - cron: '0 */1 * * *' # 每1小时运行一次
-  workflow_dispatch: # 允许手动触发
-  push: # 允许提交触发
+    - cron: '0 */1 * * *'  # 定时触发：每小时的第0分钟运行一次（UTC时间）
+  workflow_dispatch:       # 允许手动点击按钮触发该工作流
+  push:                   # 当有 push 事件发生时自动触发
 
 jobs:
-
+  # 定义一个作业，名称为 update-ip-list
   update-ip-list:
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-latest  # 在 GitHub 提供的 Ubuntu 最新虚拟环境中运行
+
     steps:
+    # 第一步：检出（克隆）当前仓库代码到 runner 环境
     - uses: actions/checkout@v3
-      
+
+    # 第二步：安装指定版本的 Python 环境
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
-        
+        python-version: '3.9'  # 安装 Python 3.9 版本
+
+    # 第三步：安装脚本依赖包
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install requests
-        pip install beautifulsoup4
-        
+        python -m pip install --upgrade pip    # 升级 pip 到最新版
+        pip install requests                    # 安装 requests 库，用于发起 HTTP 请求
+        pip install beautifulsoup4             # 安装 beautifulsoup4，用于解析网页内容
+
+    # 第四步：运行你写好的 Python 脚本 collect_ips.py
     - name: Run script
       run: python ${{ github.workspace }}/collect_ips.py
-        
+      # ${{ github.workspace }} 代表当前仓库的根目录路径
+
+    # 第五步：配置 Git 用户信息，提交并推送更改（仅当有变动时）
     - name: Commit and push changes
       run: |
-        git config --global user.email "tianshideyou@proton.me"
-        git config --global user.name "tianshipapa"
+        # 设置 Git 提交的用户名为当前触发工作流的 GitHub 用户名
+        git config --global user.name "${{ github.actor }}"
+        # 设置 Git 提交的邮箱为 GitHub 自动生成的 noreply 邮箱，保护隐私
+        git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+        # 判断是否有文件变更（git status --porcelain 会输出简洁变更信息）
         if [ -n "$(git status --porcelain)" ]; then
-          git add ip.txt
-          git commit -m "Automatic update"
-          git push
+          git add ip.txt              # 将更新后的 ip.txt 文件添加到 Git 暂存区
+          git commit -m "Automatic update"  # 以“Automatic update”为提交信息进行提交
+          git push                   # 将本地提交推送到远程仓库
         else
-          echo "No changes detected, skipping commit."
-        fi
+          echo "No changes detected, skipping commit."  # 没有变更则跳过提交，避免空提交
